@@ -23,7 +23,7 @@ export default function PurchaseStock() {
 
     const product = products.find((p) => p.id === productId);
     const amount = parseInt(qty);
-    dispatch({ type: "PURCHASE_STOCK", payload: { id: productId, qty: amount } });
+    dispatch({ type: "PURCHASE_STOCK", payload: { id: productId, quantity: amount } });
     logActivity(`Added ${amount}x ${product?.name}`);
     toast.success(`Stock updated for ${product?.name}`);
     setProductId("");

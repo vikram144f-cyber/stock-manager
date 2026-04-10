@@ -27,7 +27,7 @@ export default function SellStock() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    dispatch({ type: "SELL_STOCK", payload: { id: productId, qty: amount } });
+    dispatch({ type: "SELL_STOCK", payload: { id: productId, quantity: amount } });
     logActivity(`Sold ${amount}x ${selected?.name}`);
     toast.success(`Sold ${amount} units of ${selected?.name}`);
 
