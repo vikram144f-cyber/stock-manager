@@ -22,7 +22,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/stock-manager">
           <InventoryProvider>
             <AppLayout>
               <Routes>
