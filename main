@@ -1,0 +1,209 @@
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <iomanip>
+using namespace std;
+
+class Product {
+private:
+    string productID;
+    string name;
+    double price;
+    int quantity;
+
+public:
+    Product(string id, string n, double p, int q)
+        : productID(id), name(n), price(p), quantity(q) {}
+
+    // Getters
+    string getID() const { return productID; }
+    string getName() const { return name; }
+    double getPrice() const { return price; }
+    int getQuantity() const { return quantity; }
+
+    // Setters
+    void setQuantity(int q) { quantity = q; }
+    void setPrice(double p) { price = p; }
+
+    void display() const {
+        cout << left << setw(10) << productID
+             << setw(20) << name
+             << setw(10) << fixed << setprecision(2) << price
+             << setw(10) << quantity << "\n";
+    }
+
+    string toCSV() const {
+        return productID + "," + name + "," + to_string(price) + "," + to_string(quantity);
+    }
+};
+
+class Inventory {
+private:
+    vector<Product> products;
+    string filename = "inventory.csv";
+    int lowStockThreshold = 5;
+
+    int findIndex(const string& id) const {
+        for (int i = 0; i < products.size(); i++)
+            if (products[i].getID() == id) return i;
+        return -1;
+    }
+
+public:
+    Inventory() { loadFromFile(); }
+
+    void addProduct() {
+        string id, name;
+        double price;
+        int qty;
+
+        cout << "Enter Product ID: "; cin >> id;
+        if (findIndex(id) != -1) {
+            cout << "Product ID already exists!\n";
+            return;
+        }
+        cin.ignore();
+        cout << "Enter Name: "; getline(cin, name);
+        cout << "Enter Price: "; cin >> price;
+        cout << "Enter Quantity: "; cin >> qty;
+
+        products.emplace_back(id, name, price, qty);
+        cout << "Product added successfully!\n";
+        saveToFile();
+    }
+
+    void purchaseStock() {
+        string id; int qty;
+        cout << "Enter Product ID: "; cin >> id;
+        int idx = findIndex(id);
+        if (idx == -1) { cout << "Product not found!\n"; return; }
+        cout << "Enter quantity to add: "; cin >> qty;
+        products[idx].setQuantity(products[idx].getQuantity() + qty);
+        cout << "Stock updated. New quantity: " << products[idx].getQuantity() << "\n";
+        saveToFile();
+    }
+
+    void sellStock() {
+        string id; int qty;
+        cout << "Enter Product ID: "; cin >> id;
+        int idx = findIndex(id);
+        if (idx == -1) { cout << "Product not found!\n"; return; }
+        cout << "Enter quantity to sell: "; cin >> qty;
+        if (qty > products[idx].getQuantity()) {
+            cout << "Insufficient stock! Available: " << products[idx].getQuantity() << "\n";
+            return;
+        }
+        products[idx].setQuantity(products[idx].getQuantity() - qty);
+        cout << "Sale successful. Remaining: " << products[idx].getQuantity() << "\n";
+        if (products[idx].getQuantity() <= lowStockThreshold)
+            cout << "⚠ LOW STOCK ALERT for " << products[idx].getName() << "!\n";
+        saveToFile();
+    }
+
+    void searchProduct() const {
+        string keyword;
+        cin.ignore();
+        cout << "Enter Product ID or name keyword: "; getline(cin, keyword);
+        bool found = false;
+        cout << left << setw(10) << "ID" << setw(20) << "Name"
+             << setw(10) << "Price" << setw(10) << "Qty" << "\n";
+        cout << string(50, '-') << "\n";
+        for (const auto& p : products) {
+            string lname = p.getName(), lkw = keyword;
+            transform(lname.begin(), lname.end(), lname.begin(), ::tolower);
+            transform(lkw.begin(), lkw.end(), lkw.begin(), ::tolower);
+            if (p.getID() == keyword || lname.find(lkw) != string::npos) {
+                p.display(); found = true;
+            }
+        }
+        if (!found) cout << "No products found.\n";
+    }
+
+    void deleteProduct() {
+        string id;
+        cout << "Enter Product ID to delete: "; cin >> id;
+        int idx = findIndex(id);
+        if (idx == -1) { cout << "Product not found!\n"; return; }
+        cout << "Confirm delete '" << products[idx].getName() << "'? (y/n): ";
+        char ch; cin >> ch;
+        if (ch == 'y' || ch == 'Y') {
+            products.erase(products.begin() + idx);
+            cout << "Product deleted.\n";
+            saveToFile();
+        } else cout << "Deletion cancelled.\n";
+    }
+
+    void lowStockReport() const {
+        cout << "\n--- Low Stock Report (threshold: " << lowStockThreshold << ") ---\n";
+        cout << left << setw(10) << "ID" << setw(20) << "Name"
+             << setw(10) << "Price" << setw(10) << "Qty" << "\n";
+        cout << string(50, '-') << "\n";
+        bool any = false;
+        for (const auto& p : products)
+            if (p.getQuantity() <= lowStockThreshold) { p.display(); any = true; }
+        if (!any) cout << "All products are well-stocked.\n";
+    }
+
+    void totalInventoryValue() const {
+        double total = 0;
+        for (const auto& p : products)
+            total += p.getPrice() * p.getQuantity();
+        cout << fixed << setprecision(2);
+        cout << "\nTotal Inventory Value: Rs." << total << "\n";
+    }
+
+    void displayAll() const {
+        if (products.empty()) { cout << "No products in inventory.\n"; return; }
+        cout << left << setw(10) << "ID" << setw(20) << "Name"
+             << setw(10) << "Price" << setw(10) << "Qty" << "\n";
+        cout << string(50, '-') << "\n";
+        for (const auto& p : products) p.display();
+    }
+
+    void saveToFile() const {
+        ofstream file(filename);
+        for (const auto& p : products) file << p.toCSV() << "\n";
+    }
+
+    void loadFromFile() {
+        ifstream file(filename);
+        if (!file) return;
+        string line;
+        while (getline(file, line)) {
+            stringstream ss(line);
+            string id, name, ps, qs;
+            getline(ss, id, ','); getline(ss, name, ',');
+            getline(ss, ps, ','); getline(ss, qs, ',');
+            if (!id.empty())
+                products.emplace_back(id, name, stod(ps), stoi(qs));
+        }
+    }
+};
+
+int main() {
+    Inventory inv;
+    int choice;
+    do {
+        cout << "\n===== SHOP STOCK CONTROLLER =====\n";
+        cout << "1. Add Product\n2. Purchase Stock\n3. Sell Stock\n";
+        cout << "4. Search Product\n5. Delete Product\n";
+        cout << "6. Low Stock Report\n7. Total Inventory Value\n";
+        cout << "8. Display All Products\n0. Exit\n";
+        cout << "Choice: "; cin >> choice;
+        switch (choice) {
+            case 1: inv.addProduct(); break;
+            case 2: inv.purchaseStock(); break;
+            case 3: inv.sellStock(); break;
+            case 4: inv.searchProduct(); break;
+            case 5: inv.deleteProduct(); break;
+            case 6: inv.lowStockReport(); break;
+            case 7: inv.totalInventoryValue(); break;
+            case 8: inv.displayAll(); break;
+            case 0: cout << "Goodbye!\n"; break;
+            default: cout << "Invalid choice.\n";
+        }
+    } while (choice != 0);
+    return 0;
+}
